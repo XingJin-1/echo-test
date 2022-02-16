@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"strings"
 
 	"github.com/golang-jwt/jwt"
@@ -54,6 +56,13 @@ func sidecar(c echo.Context) error {
 	var token string
 	var authHeader string
 
+	//url1, _ := url.Parse("http://localhost:8080")
+	url2, _ := url.Parse("http://localhost:4200")
+	//proxy1 := httputil.NewSingleHostReverseProxy(url1)
+	proxy2 := httputil.NewSingleHostReverseProxy(url2)
+	req := c.Request()
+	res := c.Response().Writer
+
 	if val, ok := c.Request().Header["Authorization"]; ok {
 		fmt.Printf("Authozation header provided: \n")
 		authHeader = val[0]
@@ -65,6 +74,10 @@ func sidecar(c echo.Context) error {
 			token = JWT()
 			// TODO: Attach header with the redirect
 			//c.Redirect(302, "http://localhost:4200")
+			req.Host = url2.Host
+			req.URL.Host = url2.Host
+			req.URL.Scheme = url2.Scheme
+			proxy2.ServeHTTP(res, req)
 		} else {
 			//JWT token is present
 			fmt.Printf("JWT Authorization header provided! \n")
@@ -82,10 +95,20 @@ func sidecar(c echo.Context) error {
 						// TODO: verify the JWT token
 						// 		 attach header with the redirect
 						//c.Redirect(302, "http://localhost:4200")
+						req.Host = url2.Host
+						req.URL.Host = url2.Host
+						req.URL.Scheme = url2.Scheme
+						proxy2.ServeHTTP(res, req)
 					} else {
 						fmt.Println("Dealing with JWT token issued by the iam sidecar! The issuer is: ", val, "The request will be redirected to the iam side car.")
 						// TODO: append JWT to the header of the request
-						//c.Redirect(302, "http://localhost:8080")
+						c.Redirect(302, "http://localhost:8080")
+						/*
+							req.Host = url1.Host
+							req.URL.Host = url1.Host
+							req.URL.Scheme = url1.Scheme
+							proxy1.ServeHTTP(res, req)
+						*/
 					}
 				} else {
 					fmt.Println("No Issuer provided!")
@@ -95,7 +118,7 @@ func sidecar(c echo.Context) error {
 	} else {
 		//forward to the iam side car
 		fmt.Printf("No Authorization header provided! The request will be redirected to the iam side car.\n")
-		//c.Redirect(302, "http://localhost:8080")
+		c.Redirect(302, "http://localhost:8080")
 	}
 
 	return c.String(http.StatusOK, token)
