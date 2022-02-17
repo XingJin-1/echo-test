@@ -1,0 +1,121 @@
+# See https://golangci-lint.run/usage/configuration/
+linters-settings:
+  funlen:
+    lines: 80
+    statements: 50
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  gocyclo:
+    min-complexity: 20
+  goimports:
+    local-prefixes: iblm/
+  gomnd:
+    settings:
+      mnd: # see https://github.com/tommy-muehle/go-mnd/#checks
+        checks:
+          - argument
+          - condition
+          - return
+  govet:
+    check-shadowing: false
+    settings:
+      printf:
+        funcs:
+          - (rddl/microservice-commons/log).Fatalf
+          - (rddl/microservice-commons/log).Errorf
+          - (rddl/microservice-commons/log).Infof
+          - (rddl/microservice-commons/log).Warnf
+          - (rddl/microservice-commons/log.Logger).Fatalf
+          - (rddl/microservice-commons/log.Logger).Errorf
+          - (rddl/microservice-commons/log.Logger).Infof
+          - (rddl/microservice-commons/log.Logger).Warnf
+          - (rddl/microservice-commons/errors).ServiceUnavailablef
+          - (rddl/microservice-commons/errors).BadGatewayf
+          - (rddl/microservice-commons/errors).BadRequestf
+          - (rddl/microservice-commons/errors).Bindingf
+          - (rddl/microservice-commons/errors).Conflictf
+          - (rddl/microservice-commons/errors).Databasef
+          - (rddl/microservice-commons/errors).Forbiddenf
+          - (rddl/microservice-commons/errors).InternalServerf
+          - (rddl/microservice-commons/errors).ResourceNotFoundf
+          - (rddl/microservice-commons/errors).URLNotFoundf
+          - (rddl/microservice-commons/errors).Unauthorizedf
+          - (rddl/microservice-commons/errors).Validationf
+          - (rddl/microservice-commons/errors).GatewayTimeoutf
+  lll:
+    line-length: 140
+  misspell:
+    locale: US
+  revive:
+    severity: warning
+    rules:
+      - name: unused-parameter
+
+linters:
+  disable-all: true
+  enable:
+    - bodyclose
+    - deadcode
+    - dogsled
+    - errcheck
+    - errname
+    - funlen
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - godox
+    - gomnd
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - makezero
+    - misspell
+    - nakedret
+    - nestif
+    - nilerr
+    - revive
+    - rowserrcheck
+    - staticcheck
+    - structcheck
+    - stylecheck
+    - tagliatelle
+    - testpackage
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - varcheck
+    - wastedassign
+    - whitespace
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - funlen
+        - bodyclose
+        - lll
+        - gosec
+        - errcheck
+    - path: config\.go
+      linters:
+        - gomnd
+
+run:
+  skip-dirs:
+    - .vscode
+    - .idea
+    - helm
+  skip-files:
+    - mock_
+
+
+service:
+  golangci-lint-version: 1.42.x # use the fixed version to not introduce new linters unexpectedly
+

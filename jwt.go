@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"net/http"
 	"os"
 	"time"
 
@@ -19,21 +21,58 @@ type CustomClaims struct {
 	SHash         string "json:\"s_hash,omitempty\""
 }
 
-func JWT() string {
+type UserInfo struct {
+	ID                     string
+	UserID                 string
+	Login                  string
+	FirstName              string
+	LastName               string
+	Department             string
+	GlobalID               string
+	Email                  string
+	DistinguishedName      string
+	Domain                 string
+	AccountType            string
+	ExternalSystemType     string
+	Removable              string
+	Access                 bool
+	Status                 string
+	ThumbnailPictureBase64 string
+}
 
-	userID := "XingJin"
+func JWT(basicAuth string) string {
 
-	token, err := CreateToken(userID)
+	userInfo, err := VerifyCredentials(basicAuth)
+
+	token, err := CreateToken(userInfo)
 
 	if err == nil {
 		println("Token: ", token)
 	} else {
 		println("Error while generating tokens")
 	}
+
 	return token
 }
 
-func CreateToken(userid string) (string, error) {
+func VerifyCredentials(basicAuth string) (*UserInfo, error) {
+	// TODO: somehow get the username or email
+	url := "https://gam.intra.infineon.com/rest/ad/users?username=XingJin"
+
+	client := &http.Client{}
+	req, _ := http.NewRequest("GET", url, nil)
+
+	req.Header.Set("Authorization", basicAuth)
+	res, _ := client.Do(req)
+
+	info := make([]*UserInfo, 1)
+	if err := json.NewDecoder(res.Body).Decode(&info); err != nil {
+		return nil, err
+	}
+	return info[0], nil
+}
+
+func CreateToken(userinfo *UserInfo) (string, error) {
 	var err error
 	// TODO: get signing keys 	Openshift secrete
 	os.Setenv("ACCESS_SECRET", "jdnfksdmfksd") //this should be in an env file
