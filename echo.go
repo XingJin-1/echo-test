@@ -45,8 +45,6 @@ func sidecar(c echo.Context) error {
 	var token string
 	var authHeader string
 
-	//URLIAM, _ := url.Parse("http://localhost:8080")
-	//URLUPSTREAM, _ := url.Parse("http://localhost:4200")
 	proxyIAM := httputil.NewSingleHostReverseProxy(URLIAM)
 	proxyUpstream := httputil.NewSingleHostReverseProxy(URLUPSTREAM)
 
@@ -90,19 +88,18 @@ func sidecar(c echo.Context) error {
 						req.Host = URLUPSTREAM.Host
 						req.URL.Host = URLUPSTREAM.Host
 						req.URL.Scheme = URLUPSTREAM.Scheme
-						//Attach header with the redirect
+						// Attach header with the redirect
 						res.Header().Add("Authorization", bearerToken)
 						proxyUpstream.ServeHTTP(res, req)
 					} else {
 						fmt.Println("Dealing with JWT token issued by the iam sidecar! The issuer is: ", val, "The request will be redirected to the iam side car.")
-						//c.Redirect(302, "http://localhost:8080")
 						req.Host = URLIAM.Host
 						req.URL.Host = URLIAM.Host
 						req.URL.Scheme = URLIAM.Scheme
+						res.Header().Add("Authorization", bearerToken)
 						// Attach header with the redirect
 						proxyIAM.ServeHTTP(res, req)
 						// forward the url with oauth2
-
 					}
 				} else {
 					fmt.Println("No Issuer provided!")
@@ -110,7 +107,7 @@ func sidecar(c echo.Context) error {
 			}
 		}
 	} else {
-		//forward to the iam side car
+		// forward to the iam side car
 		fmt.Printf("No Authorization header provided! The request will be redirected to the iam side car.\n")
 		//c.Redirect(302, "http://localhost:8080")
 		req.Host = URLIAM.Host
