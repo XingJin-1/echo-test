@@ -12,6 +12,11 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
+var (
+	URLIAM, _      = url.Parse("http://localhost:8080")
+	URLUPSTREAM, _ = url.Parse("http://localhost:4200")
+)
+
 func main() {
 	// Echo instance
 	e := echo.New()
@@ -23,28 +28,27 @@ func main() {
 	// Routes
 	e.GET("/", sidecar)
 
-	urlIAM, _ := url.Parse("http://localhost:8080")
-	targets := []*middleware.ProxyTarget{
+	targetsOauth2 := []*middleware.ProxyTarget{
 		{
-			URL: urlIAM,
+			URL: URLIAM,
 		},
 	}
-	g := e.Group("/oauth2")
-	g.Use(middleware.Proxy(middleware.NewRoundRobinBalancer(targets)))
+	groupOauth2 := e.Group("/oauth2")
+	groupOauth2.Use(middleware.Proxy(middleware.NewRoundRobinBalancer(targetsOauth2)))
 
 	// Start server
 	e.Logger.Fatal(e.Start(":8082"))
 }
 
-// Handler
+// Handler.
 func sidecar(c echo.Context) error {
 	var token string
 	var authHeader string
 
-	urlIAM, _ := url.Parse("http://localhost:8080")
-	urlUpstream, _ := url.Parse("http://localhost:4200")
-	proxyIAM := httputil.NewSingleHostReverseProxy(urlIAM)
-	proxyUpstream := httputil.NewSingleHostReverseProxy(urlUpstream)
+	//URLIAM, _ := url.Parse("http://localhost:8080")
+	//URLUPSTREAM, _ := url.Parse("http://localhost:4200")
+	proxyIAM := httputil.NewSingleHostReverseProxy(URLIAM)
+	proxyUpstream := httputil.NewSingleHostReverseProxy(URLUPSTREAM)
 
 	req := c.Request()
 	res := c.Response().Writer
@@ -61,9 +65,9 @@ func sidecar(c echo.Context) error {
 			// go-cache
 			token = JWT(authHeader)
 			bearerToken := "Bearer " + token
-			req.Host = urlUpstream.Host
-			req.URL.Host = urlUpstream.Host
-			req.URL.Scheme = urlUpstream.Scheme
+			req.Host = URLUPSTREAM.Host
+			req.URL.Host = URLUPSTREAM.Host
+			req.URL.Scheme = URLUPSTREAM.Scheme
 			// Attach header with the redirect
 			res.Header().Add("Authorization", bearerToken)
 			proxyUpstream.ServeHTTP(res, req)
@@ -83,18 +87,18 @@ func sidecar(c echo.Context) error {
 						// The JWT token is issued by the basic auth sidecar
 						fmt.Println("Dealing with JWT token issued by the basic auth sidecar! the issuer is: ", val)
 						// TODO: verify the JWT token
-						req.Host = urlUpstream.Host
-						req.URL.Host = urlUpstream.Host
-						req.URL.Scheme = urlUpstream.Scheme
+						req.Host = URLUPSTREAM.Host
+						req.URL.Host = URLUPSTREAM.Host
+						req.URL.Scheme = URLUPSTREAM.Scheme
 						//Attach header with the redirect
 						res.Header().Add("Authorization", bearerToken)
 						proxyUpstream.ServeHTTP(res, req)
 					} else {
 						fmt.Println("Dealing with JWT token issued by the iam sidecar! The issuer is: ", val, "The request will be redirected to the iam side car.")
 						//c.Redirect(302, "http://localhost:8080")
-						req.Host = urlIAM.Host
-						req.URL.Host = urlIAM.Host
-						req.URL.Scheme = urlIAM.Scheme
+						req.Host = URLIAM.Host
+						req.URL.Host = URLIAM.Host
+						req.URL.Scheme = URLIAM.Scheme
 						// Attach header with the redirect
 						proxyIAM.ServeHTTP(res, req)
 						// forward the url with oauth2
@@ -109,9 +113,9 @@ func sidecar(c echo.Context) error {
 		//forward to the iam side car
 		fmt.Printf("No Authorization header provided! The request will be redirected to the iam side car.\n")
 		//c.Redirect(302, "http://localhost:8080")
-		req.Host = urlIAM.Host
-		req.URL.Host = urlIAM.Host
-		req.URL.Scheme = urlIAM.Scheme
+		req.Host = URLIAM.Host
+		req.URL.Host = URLIAM.Host
+		req.URL.Scheme = URLIAM.Scheme
 		// Attach header with the redirect
 		proxyIAM.ServeHTTP(res, req)
 	}
