@@ -23,6 +23,15 @@ func main() {
 	// Routes
 	e.GET("/", sidecar)
 
+	urlIAM, _ := url.Parse("http://localhost:8080")
+	targets := []*middleware.ProxyTarget{
+		{
+			URL: urlIAM,
+		},
+	}
+	g := e.Group("/oauth2")
+	g.Use(middleware.Proxy(middleware.NewRoundRobinBalancer(targets)))
+
 	// Start server
 	e.Logger.Fatal(e.Start(":8082"))
 }
@@ -36,6 +45,7 @@ func sidecar(c echo.Context) error {
 	urlUpstream, _ := url.Parse("http://localhost:4200")
 	proxyIAM := httputil.NewSingleHostReverseProxy(urlIAM)
 	proxyUpstream := httputil.NewSingleHostReverseProxy(urlUpstream)
+
 	req := c.Request()
 	res := c.Response().Writer
 

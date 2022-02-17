@@ -81,19 +81,19 @@ func CreateToken(userinfo *UserInfo) (string, error) {
 	//atClaims["exp"] = time.Now().Add(time.Minute * 15).Unix()
 	atClaims := CustomClaims{
 		StandardClaims: jwt.StandardClaims{
-			Subject:   "Jin.Xing@infineon.com",
-			Audience:  "rddl",
+			Subject:   userinfo.Email,
+			Audience:  "miam",
 			Id:        "test-id",
 			Issuer:    "Managed-Identity-And-Access-Management-For-Infineon",
 			IssuedAt:  time.Now().Unix(),
-			ExpiresAt: time.Now().Add(time.Minute * 15).Unix(),
+			ExpiresAt: time.Now().Add(time.Hour * 2).Unix(),
 		},
 		AuthTime:      time.Now().Unix(),
 		EmailVerified: true,
-		Name:          "Xing Jin (IFAG IT DSA RD PE)",
-		GivenName:     "Xing",
-		FamilyName:    "Jin",
-		Email:         "Jin.Xing@infineon.com",
+		Name:          userinfo.Login,
+		GivenName:     userinfo.FirstName,
+		FamilyName:    userinfo.LastName,
+		Email:         userinfo.Email,
 		PiSri:         "un8EQ2xr1HCTQVInLk0DL7z4Btg..Al2g",
 		SHash:         "6eQETHDIvtTEss0dNZFWWw",
 	}
