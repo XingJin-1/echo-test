@@ -2,6 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -40,41 +43,46 @@ type UserInfo struct {
 	ThumbnailPictureBase64 string
 }
 
-func JWT(basicAuth string) string {
-
-	userInfo, err := VerifyCredentials(basicAuth)
-
-	token, err := CreateToken(userInfo)
-
-	if err == nil {
-		println("Token: ", token)
-	} else {
-		println("Error while generating tokens")
+func JWTTokenGeneration(basicAuth string) string {
+	userInfo, err := verifyCredentials(basicAuth)
+	if err != nil {
+		log.Fatalln(err)
 	}
+	token, err := createToken(userInfo)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	println("Token: ", token)
 
 	return token
 }
 
-func VerifyCredentials(basicAuth string) (*UserInfo, error) {
-	// TODO: somehow get the username or email
-	url := "https://gam.intra.infineon.com/rest/ad/users?username=XingJin"
-
+func verifyCredentials(basicAuth string) (*UserInfo, error) {
+	// curl -X GET https://gam.intra.infineon.com/rest/ad/users -H "accept: application/json" -H "Authorization: Basic eGluZ2ppbjpKeDE1NTI4MjUwMjI3IQ=="
+	url := "https://gam.intra.infineon.com/rest/ad/users"
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", url, nil)
-
 	req.Header.Set("Authorization", basicAuth)
-	res, _ := client.Do(req)
+	req.Header.Set("Accept", "application/json")
+	res, err := client.Do(req)
 
-	info := make([]*UserInfo, 1)
-	if err := json.NewDecoder(res.Body).Decode(&info); err != nil {
-		return nil, err
+	if err == nil && res.StatusCode == 200 {
+		fmt.Println("No Errors")
+		info := make([]*UserInfo, 1)
+		if err := json.NewDecoder(res.Body).Decode(&info); err != nil {
+			return nil, errors.New("response body of the GAM request is malformed")
+		} else {
+			return info[0], nil
+		}
+	} else {
+		fmt.Println("provided basic authentication did not pass the verification")
+		return nil, errors.New("provided basic authentication did not pass the verification")
 	}
-	return info[0], nil
 }
 
-func CreateToken(userinfo *UserInfo) (string, error) {
+func createToken(userinfo *UserInfo) (string, error) {
 	var err error
-	// TODO: get signing keys 	Openshift secrete
+	// TODO: get signing keys from Openshift secrete
 	os.Setenv("ACCESS_SECRET", "jdnfksdmfksd") //this should be in an env file
 
 	//atClaims := jwt.MapClaims{}

@@ -2,14 +2,17 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/patrickmn/go-cache"
 )
 
 var (
@@ -17,8 +20,11 @@ var (
 	URLUPSTREAM, _ = url.Parse("http://localhost:4200")
 )
 
+var (
+	MemCache = cache.New(5*time.Minute, 10*time.Minute)
+)
+
 func main() {
-	// Echo instance
 	e := echo.New()
 
 	// Middleware
@@ -26,7 +32,7 @@ func main() {
 	e.Use(middleware.Recover())
 
 	// Routes
-	e.GET("/", sidecar)
+	e.GET("/", handler)
 
 	targetsOauth2 := []*middleware.ProxyTarget{
 		{
@@ -41,9 +47,10 @@ func main() {
 }
 
 // Handler.
-func sidecar(c echo.Context) error {
+func handler(c echo.Context) error {
 	var token string
 	var authHeader string
+	var bearerToken string
 
 	proxyIAM := httputil.NewSingleHostReverseProxy(URLIAM)
 	proxyUpstream := httputil.NewSingleHostReverseProxy(URLUPSTREAM)
@@ -58,17 +65,27 @@ func sidecar(c echo.Context) error {
 		if strings.Contains(authHeader, "Basic") {
 			// If basic auth
 			fmt.Printf("Basic Authorization header provided! A JWT token will be created by the basic auth sidecar\n")
-			// TODO: GAM endpoint to get claims
-			// TODO: cache to prevent from calling GAM all the time store it in memory
-			// go-cache
-			token = JWT(authHeader)
-			bearerToken := "Bearer " + token
+			// Check whether the corresponding token is already in the cache
+			if val, time, found := MemCache.GetWithExpiration(authHeader); found {
+				fmt.Println("The basic auth is already in the cache", val, "the token will be expired at: ", time)
+				bearerToken = val.(string)
+			} else {
+				// verify the basic auth and generate JWT token
+				token = JWTTokenGeneration(authHeader)
+				bearerToken = "Bearer " + token
+				// Add the token to the cache
+				err := MemCache.Add(authHeader, bearerToken, cache.DefaultExpiration)
+				if err != nil {
+					log.Fatalf("ERROR: %v", err)
+				}
+			}
 			req.Host = URLUPSTREAM.Host
 			req.URL.Host = URLUPSTREAM.Host
 			req.URL.Scheme = URLUPSTREAM.Scheme
 			// Attach header with the redirect
 			res.Header().Add("Authorization", bearerToken)
 			proxyUpstream.ServeHTTP(res, req)
+
 		} else {
 			// JWT token is present
 			fmt.Printf("JWT Authorization header provided! \n")
@@ -96,8 +113,8 @@ func sidecar(c echo.Context) error {
 						req.Host = URLIAM.Host
 						req.URL.Host = URLIAM.Host
 						req.URL.Scheme = URLIAM.Scheme
-						res.Header().Add("Authorization", bearerToken)
 						// Attach header with the redirect
+						res.Header().Add("Authorization", bearerToken)
 						proxyIAM.ServeHTTP(res, req)
 						// forward the url with oauth2
 					}
@@ -109,11 +126,9 @@ func sidecar(c echo.Context) error {
 	} else {
 		// forward to the iam side car
 		fmt.Printf("No Authorization header provided! The request will be redirected to the iam side car.\n")
-		//c.Redirect(302, "http://localhost:8080")
 		req.Host = URLIAM.Host
 		req.URL.Host = URLIAM.Host
 		req.URL.Scheme = URLIAM.Scheme
-		// Attach header with the redirect
 		proxyIAM.ServeHTTP(res, req)
 	}
 
